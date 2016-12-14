@@ -162,23 +162,25 @@ d3.queue() // to draw a choropleth we need two datasets.
 
                 console.log(hoveredCountry);
 
-                thisCountryObject = filteredData.filter(function(s){
+
+// THIS BLOCK IS WORKING TO FIND THE NUMBER OF REG. REFUGEES FROM SELECTED COUNTRY IN THE HOVERED COUNTRY
+/*                thisCountryObject = filteredData.filter(function(s){
                                 
                     if (s.countryResidence == hoveredCountry) {
 
                             return s.countryResidence == hoveredCountry;
                         };
                                 
-                    });
+                    });*/
 
-                console.log(thisCountryObject);
+                //console.log(thisCountryObject);
                 //console.log(thisCountryObject["0"].totalRegRefugees);
 
-                //console.log(tooltipInfoFunction(filteredData, d.properties.name));
+// Instead of block above, FUNCTION TO FIND THE VALUE TO SHOW IN THE TOOLTIP
+                console.log(tooltipInfoFunction(filteredData, hoveredCountry));
 
-                // --> WHAT INFO WILL SHOW ON THE TOOLTIP? 
                 tooltip.select('.title').html(hoveredCountry);
-                tooltip.select('.value').html("There are " + thisCountryObject["0"].totalRegRefugees + " registered refugees from " + clickedCountry + " living in " + hoveredCountry + ".");
+                //tooltip.select('.value').html("There are " + thisCountryObject["0"].totalRegRefugees + " registered refugees from " + clickedCountry + " living in " + hoveredCountry + ".");
                 //tooltip.select('.region').html(metadata.get(d.data.code));
 
                 tooltip
@@ -249,39 +251,91 @@ function parseData(d){
     }
 }
 
-/*function tooltipInfoFunction(flows,selectedCountryName) {
+function tooltipInfoFunction(flows,hoveredCountryName) {
 
-    // countriesResidence = array of countries that hold refugees from the selected nationality
+    console.log(flows);
+
+    flows.forEach(function(s){
+                                
+        if (flows["index"].countryResidence == hoveredCountryName) {
+
+                var countryResObject = flows.filter(function(s){
+
+                return s.countryResidence == hoveredCountryName;
+            
+                });
+
+            return countryResObject.totalRegRefugees;   
+
+        } else if (flows["index"].countryOrigin == hoveredCountryName){
+
+                var sumRefugees = [];
+
+                    refugeesData.forEach (function(e){
+
+                        if (e.countryOrigin == d.properties.name)
+                        
+                        {sumRefugees.push(e.totalRegRefugees);};
+                     });
+
+                    console.log(sumRefugees);
+
+                    sumRefugees = sumRefugees.reduce(function(a,b){
+                        
+                        return (isNaN(a)?0:a) + (isNaN(b)?0:b);
+
+                        //return a + b;
+                    
+                    },0);
+
+            return sumRefugees;
+
+        } else {
+
+                return 0;
+
+        };  
+
+    });
+                                
+}
+
+
+
+
+
+/*    // countriesResidence = array of countries that hold refugees from the selected nationality
     var countriesResidenceObjects = flows.filter(function(f){
                         return f.countryOrigin == selectedCountryName;
-                    }).map(function(e){ return e; });   
+                    }).map(function(e){ return e; });*/
+   
 
 
 
     //console.log(countriesResidenceObjects);
 
-    if (filteredData.countryResidence == hoveredCountry) {
-        return console.log("oi");
+    //if (filteredData.countryResidence == hoveredCountry) {
+        //return console.log("oi");
 
         //thisCountryObject = filteredData.countryResidence; 
-    };*/
+    //};
 
 
 /*    var thisCountry = countriesResidenceObjects.filter(function(x){
 
         return x.countryResidence ==  d.properties.name});*/
 
-    //console.log(thisCountryObject); 
+/*    console.log(thisCountryObject); 
 
 
 
-/*                    console.log(filteredData.filter(function(x){
+                   console.log(filteredData.filter(function(x){
                     if (x.countryResidence == d.properties.name) 
 
                     return e;
 
-                }));*/
-
+                }));
+*/
 //}
 
 // THIS IS THE CHOROPLETH OF US STATES - USE IT AS BASE FOR THE WORLD CHOROPLETH
@@ -312,7 +366,3 @@ function parseData(d){
 
 
         }*/
-
-
-
-
