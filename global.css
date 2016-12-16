@@ -19,7 +19,15 @@
     visibility:hidden;
     opacity:0;
 }
-    .custom-tooltip .title{
+
+.custom-tooltip .title{
         font-size:1.2em;
         font-weight:bold;
     }
+
+.country .style {
+    fill: white;
+    opacity:1;
+
+}
+

@@ -10,3 +10,11 @@
     stroke:black;
     stroke-width:0px;
 }
+
+element .style {
+	opacity:1;
+}
+
+body {
+	font-size: 14px;
+}

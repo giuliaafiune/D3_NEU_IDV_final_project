@@ -12,70 +12,108 @@ var plot = d3.select('.canvas')
     .append('g').attr('class','plot')
     .attr('transform','translate('+ m.l+','+ m.t+')');
 
-// --> WHICH NUMBER OF REFUGEES WILL WE USE AS DOMAIN FOR THE CHOROPLETH COLOR SCALE? 
-//Color scale 
-var scaleColor = d3.scaleLinear().domain([0,.15]).range(['white','red']);
-
-//Mapping
+// Map 
 var projection = d3.geoMercator(),
     path = d3.geoPath().projection(projection);
+
+var color_domain = [d3.rgb("#FFFF99"), d3.rgb("#FFBB44"), d3.rgb("#FF7722"), d3.rgb("#FF3300"), "white", "purple"];
+var legend_labels = ["0 - 25% ", "25% - 50%", "50% - 75%", "> 75%","","Country of Origin"];    
+
+// Global variables 
 
 var countries = [], refugeesData = [];
 
 var thisCountryObject = [];
 
+var totalRefugeesFromOrigin = [];
 
-// Import both data sets 
-d3.queue() // to draw a choropleth we need two datasets. 
-    .defer(d3.json, '../data/countries.geo.json') // geojson file of the world
-    .defer(d3.csv, '../data/unhcr_popstats_export_persons_of_concern_2015.csv', parseData) // dataset of distribution of world's refugees in 2015
+var percentage = [];
+
+var filteredData = [];
+
+var hoveredCountry = [];
+
+// LOADING DATA FROM BOTH DATASETS 
+d3.queue() 
+    .defer(d3.json, '../data/countries.geo.json') // geoJSON file of all countries in the world
+    .defer(d3.csv, '../data/unhcr_popstats_refugees_2015_total.csv', parseData) // dataset of distribution of world's refugees in 2015
     .await(function(err, geo, data){ // geo = geojson data; data = refugees data
         
+        // Fixing countries whose names don't match in the two datasets - , Laos, Koreas, Moldova, Serbia e Kosovo,, Macedonia, Viet Nam
         geo.features = geo.features.map(function(d,e){
-            if (e.countryResidence == "Cte d'Ivoire") {
-                e.countryResidence = "Ivory Coast";
-            }
 
+            if (d.properties.name == "Ivory Coast") {
+                d.properties.name = "Cote d'Ivoire";
+            }
             if (d.properties.name == "Russia") {
                 d.properties.name = "Russian Federation";
             }
-
             if (d.properties.name == "Syria") {
                 d.properties.name = "Syrian Arab Rep.";
             }
-
             if (d.properties.name == "Venezuela") {
                 d.properties.name = "Venezuela (Bolivarian Republic of)";
-            }
-
-            if (e.countryResidence = "China, Hong Kong SAR") {
-                e.countryResidence  = "China";
             }
             if (d.properties.name == "Democratic Republic of the Congo") {
                 d.properties.name = "Dem. Rep. of the Congo";
             }
+            if (d.properties.name == "Bolivia") {
+                d.properties.name = "Bolivia (Plurinational State of)"
+            }
+            if (d.properties.name == "Central African Republic") {
+                d.properties.name = "Central African Rep."
+            }
+            if (d.properties.name == "Iran") {
+                d.properties.name = "Iran (Islamic Rep. of)"
+            }
+            if (d.properties.name == "Democratic Republic of the Congo") {
+                d.properties.name = "Dem. Rep. of the Congo"
+            }                        
+            if (d.properties.name == "Laos") {
+                d.properties.name = "Lao People's Dem. Rep."
+            }
+            if (d.properties.name == "Vietnam") {
+                d.properties.name = "Viet Nam"
+            }            
+            if (d.properties.name == "Moldova") {
+                d.properties.name = "Rep. of Moldova"
+            }            
+            if (d.properties.name == "Macedonia") {
+                d.properties.name = "The former Yugoslav Republic of Macedonia"
+            }
+            if (d.properties.name == "Czech Republic") {
+                d.properties.name = "Czech Rep."
+            }
+            if (d.properties.name == "United Republic of Tanzania") {
+                d.properties.name = "United Rep. of Tanzania"
+            }                         
 
-
+            
             return d;
         });
+
         refugeesData = data;
 
-        geo.features = geo.features.filter(function(d){return d.properties.name != "Antarctica";})
-        //console.log(geo), console.log(data);
+
+// DRAW THE BASIC MAP 
+
+        geo.features = geo.features.filter(function(d){return d.properties.name != "Antarctica";}) // filter out Antar
 
         projection.fitExtent([[0,0],[w,h]],geo);
-
-        // console.log(refugeesData["590"]);
 
         countries = plot.selectAll(".country")
         .data(geo.features)
         .enter()
         .append("path").attr("class","country")
         .attr("d", path)
-        .style("fill","grey")
-        //Tooltip
+        .style("fill","#cccccc")
+        .style("stroke","#999999")
+
+    
+    //TOOLTIP - show refugee information for each country
         .on('mouseenter',function(d){
-                var tooltip = d3.select('.custom-tooltip');
+            
+            var tooltip = d3.select('.custom-tooltip');
 
                 var sumRefugees = [];
 
@@ -85,8 +123,6 @@ d3.queue() // to draw a choropleth we need two datasets.
                         
                         {sumRefugees.push(e.totalRegRefugees);};
                      });
-
-                    console.log(sumRefugees);
 
                     sumRefugees = sumRefugees.reduce(function(a,b){
                         
@@ -99,57 +135,55 @@ d3.queue() // to draw a choropleth we need two datasets.
                 //console.log(d);
                 tooltip.select('.title').html(d.properties.name);
                 tooltip.select('.value').html("There are " + sumRefugees + " registered refugees from this country.");
-                //console.log(refugeesData.filter(function(e){ return e.countryOrigin == d.properties.name;}));
-
 
                 tooltip
                     .style('visibility','visible')
                     .transition()
-                    .style('opacity',.8);
+                    .style('opacity',1);
 
-            d3.select(this).transition().style('opacity',1);
-            })
+            d3.select(this).transition().style('opacity',1); // opacity of country shape
+        })
+
         .on('mousemove',function(d){
                 var xy = d3.mouse(d3.select('.container').node());
 
                 var tooltip = d3.select('.custom-tooltip')
                     .style('left',xy[0]+20+'px')
                     .style('top',xy[1]+20+'px')
-                    .style('opacity',0);
+                    .style('opacity',1);
 
-            })
+        })
         .on('mouseleave',function(d){
                 var tooltip = d3.select('.custom-tooltip');
 
                 tooltip
                     .style('visibility','hidden')
-                    .style('opacity',.8);
+                    .style('opacity',1);
 
-                d3.select(this).transition().style('opacity',1);
+                d3.select(this).transition().style('opacity',1); // opacity of country shape
             
 
-            })
+        })
 
     // AFTER CLICK - Interactivity function
         
-        .on("click", function(d){ // this defines the selection
+        .on("click", function(d){ // .on click, we select the country of origin
             
-            //name of the clicked country
-            console.log(d.properties.name); 
-
+            //name of the clicked country = name of the country of origin
             var clickedCountry = d.properties.name;
             
-            //filteredData has all objects that have the selected country as countryOrigin
-            var filteredData = data.filter(function(e){
-                // console.log(e)
+            // When we click, the data is filtered by the selected country of origin. 
+            // var filteredData has all objects which have the selected country as countryOrigin
+
+            filteredData = data.filter(function(e){
                 return e.countryOrigin == clickedCountry;
             });
+
+            console.table(filteredData);
             
+        // DRAW MAP AGAIN, WITH APPROPRIATE COLORS
+
             draw(filteredData, clickedCountry);
-
-            console.log(filteredData);
-
-            //console.log(numberRefugees);
 
         // ON MOUSE ENTER
 
@@ -157,38 +191,26 @@ d3.queue() // to draw a choropleth we need two datasets.
 
                 var tooltip = d3.select('.custom-tooltip');
 
-                // this is the country the mouse hovers over
-                var hoveredCountry = d.properties.name;
+                // this is the country the mouse hovers over 
+                hoveredCountry = d.properties.name;
 
                 console.log(hoveredCountry);
 
+        // FUNCTION TO FIND THE VALUE TO SHOW IN THE TOOLTIP
 
-// THIS BLOCK IS WORKING TO FIND THE NUMBER OF REG. REFUGEES FROM SELECTED COUNTRY IN THE HOVERED COUNTRY
-/*                thisCountryObject = filteredData.filter(function(s){
-                                
-                    if (s.countryResidence == hoveredCountry) {
+               var info = tooltipInfoFunction(filteredData, clickedCountry, hoveredCountry);
 
-                            return s.countryResidence == hoveredCountry;
-                        };
-                                
-                    });*/
-
-                //console.log(thisCountryObject);
-                //console.log(thisCountryObject["0"].totalRegRefugees);
-
-// Instead of block above, FUNCTION TO FIND THE VALUE TO SHOW IN THE TOOLTIP
-                console.log(tooltipInfoFunction(filteredData, hoveredCountry));
+               //console.log(info);
 
                 tooltip.select('.title').html(hoveredCountry);
-                //tooltip.select('.value').html("There are " + thisCountryObject["0"].totalRegRefugees + " registered refugees from " + clickedCountry + " living in " + hoveredCountry + ".");
-                //tooltip.select('.region').html(metadata.get(d.data.code));
+                tooltip.select('.value').html(info);
 
                 tooltip
                     .style('visibility','visible')
                     .transition()
                     .style('opacity',1);
 
-                d3.select(this).transition().style('opacity',1);
+                d3.select(this).transition().style('opacity',1); // opacity of country shape
             })
             .on('mousemove',function(d){
                 var xy = d3.mouse(d3.select('.container').node());
@@ -203,13 +225,36 @@ d3.queue() // to draw a choropleth we need two datasets.
 
                 tooltip
                     .style('visibility','hidden')
-                    .style('opacity',0);
+                    .style('opacity',1);
 
-                d3.select(this).transition().style('opacity',.7);
+                d3.select(this).transition().style('opacity',1); // opacity of country shape
             
 
             })
         });
+
+
+      //Adding legend for our Choropleth
+
+          var legend = plot.selectAll("g.legend")
+          .data(color_domain)
+          .enter().append("g")
+          .attr("class", "legend");
+
+          var ls_w = 20, ls_h = 20;
+
+          legend.append("rect")
+          .attr("x", 20)
+          .attr("y", function(d, i){ return h - (i*ls_h) - 2*ls_h;})
+          .attr("width", ls_w)
+          .attr("height", ls_h)
+          .style("fill", function(d, i) { return color_domain[i]; })
+          .style("opacity", 0.8);
+
+          legend.append("text")
+          .attr("x", 50)
+          .attr("y", function(d, i){ return h - (i*ls_h) - ls_h - 4;})
+          .text(function(d, i){ return legend_labels[i]; });    
 
 
 });    
@@ -217,152 +262,102 @@ d3.queue() // to draw a choropleth we need two datasets.
 
 // FUNCTIONS
 
-function draw(flows, selectedCountryName) {
-
-    //console.log(d["0"].countryResidence);
-    var countriesResidence = flows.filter(function(f){
-                        return f.countryOrigin == selectedCountryName;
-                    }).map(function(e){ return e.countryResidence; });
-    countries // filter the countries according to the countries of residence in the selected array  
-        .style("fill",function(d){
-
-            // console.log(countryResidences);
-            if (d.properties.name == selectedCountryName) {
-                return "red";
-            } else if (countriesResidence.indexOf(d.properties.name) != -1 && countriesResidence.totalRegRefugees != NaN) { // second part not working
-                return "blue";
-            }
-            return "grey";
-            // 
-        });
-
-    //console.log(function(d){ return countriesResidence.indexOf(selectedCountryName)});
-
-}
- 
-
 function parseData(d){
 
     return {
         countryResidence: d["Country / territory of asylum/residence"],
         countryOrigin: d["Origin"],
         totalRegRefugees: +d["Refugees (incl. refugee-like situations)"],
-        totalPopConcern: +d["Total Population"]
+        percentage: +d["percentage"]
     }
 }
 
-function tooltipInfoFunction(flows,hoveredCountryName) {
 
-    console.log(flows);
 
-    flows.forEach(function(s){
-                                
-        if (flows["index"].countryResidence == hoveredCountryName) {
+function draw(flows, selectedCountryName) {
 
-                var countryResObject = flows.filter(function(s){
+    //Names of countries of residence
+    var countriesResidence = flows.filter(function(f){
+                        return f.countryOrigin == selectedCountryName;
+                    }).map(function(e){ return e.countryResidence; });
 
-                return s.countryResidence == hoveredCountryName;
-            
-                });
+    //console.log(countriesResidence);
+    //console.log(selectedCountryName);
 
-            return countryResObject.totalRegRefugees;   
+    // CHOROPLETH - Color the country shapes according to the percentage of refugees from selected nationality in hovered country
+    countries   
+        .style("fill",function(d){
 
-        } else if (flows["index"].countryOrigin == hoveredCountryName){
+            if (d.properties.name == selectedCountryName) {
+                return d3.rgb("purple");
+            } else if (countriesResidence.indexOf(d.properties.name) != -1) {               
+
+                        if (isNaN(flows[countriesResidence.indexOf(d.properties.name)].totalRegRefugees)){
+
+                            return d3.rgb("#cccccc");
+
+                        } else if (flows[countriesResidence.indexOf(d.properties.name)].totalRegRefugees == 0)    {
+
+                            return d3.rgb("#cccccc");    
+
+                        } else if (flows[countriesResidence.indexOf(d.properties.name)].percentage > 75) {
+
+                            return color_domain[3];
+
+                        } else if (flows[countriesResidence.indexOf(d.properties.name)].percentage > 50) {
+
+                            return color_domain[2];
+
+                        } else if (flows[countriesResidence.indexOf(d.properties.name)].percentage > 25) {
+
+                            return color_domain[1];
+
+                        } else if (flows[countriesResidence.indexOf(d.properties.name)].percentage > 0) {
+
+                            return color_domain[0];
+
+                        }
+
+            } else { return d3.rgb("#cccccc");}
+
+        });  
+}
+ 
+function tooltipInfoFunction(flows,selectedCountryName,hoveredCountryName) {
+
+    //Names of countries of residence
+    var countriesResidence = flows.filter(function(f){
+            return f.countryOrigin == selectedCountryName;
+        }).map(function(e){ return e.countryResidence; });
+                      
+        if (hoveredCountryName === selectedCountryName) {
 
                 var sumRefugees = [];
 
                     refugeesData.forEach (function(e){
 
-                        if (e.countryOrigin == d.properties.name)
+                        if (e.countryOrigin == hoveredCountryName)
                         
                         {sumRefugees.push(e.totalRegRefugees);};
                      });
 
-                    console.log(sumRefugees);
-
                     sumRefugees = sumRefugees.reduce(function(a,b){
                         
                         return (isNaN(a)?0:a) + (isNaN(b)?0:b);
-
-                        //return a + b;
                     
                     },0);
 
-            return sumRefugees;
+            return "There are " + sumRefugees + " registered refugees of this nationality.";
 
-        } else {
+        } else if (hoveredCountryName != flows[countriesResidence.indexOf(hoveredCountryName)].countryResidence) {
 
-                return 0;
+             return "There are no refugees from " + selectedCountryName + " living in " + hoveredCountry + ".";
 
-        };  
+        } else { return "There are " + flows[countriesResidence.indexOf(hoveredCountryName)].totalRegRefugees + " registered refugees from " + selectedCountryName + " living in " + hoveredCountry + "."; }  
 
-    });
+    //};
+
+    return info;
                                 
 }
 
-
-
-
-
-/*    // countriesResidence = array of countries that hold refugees from the selected nationality
-    var countriesResidenceObjects = flows.filter(function(f){
-                        return f.countryOrigin == selectedCountryName;
-                    }).map(function(e){ return e; });*/
-   
-
-
-
-    //console.log(countriesResidenceObjects);
-
-    //if (filteredData.countryResidence == hoveredCountry) {
-        //return console.log("oi");
-
-        //thisCountryObject = filteredData.countryResidence; 
-    //};
-
-
-/*    var thisCountry = countriesResidenceObjects.filter(function(x){
-
-        return x.countryResidence ==  d.properties.name});*/
-
-/*    console.log(thisCountryObject); 
-
-
-
-                   console.log(filteredData.filter(function(x){
-                    if (x.countryResidence == d.properties.name) 
-
-                    return e;
-
-                }));
-*/
-//}
-
-// THIS IS THE CHOROPLETH OF US STATES - USE IT AS BASE FOR THE WORLD CHOROPLETH
-/*        var counties = plot.selectAll(".county")
-            .data(geo.features)
-            .enter()
-            .append("path").attr("class","county")
-            .attr("d", path)
-            .style("fill", function(d){ 
-                var id = (+d.properties.STATE) + d.properties.COUNTY; // some properties.STATE numbers started with 0 which led to an error in the dataviz, by adding +, that problem is solves
-
-                // Get unemployment rate from lookup
-                var r = rate.get(id);
-                if (!r){console.log(id)} // if r is undefined, print it in the console
-                // Define color based on the rate. Return the color. 
-                return scaleColor(r);
-                
-
-            })
-            .on("click", function(d){ console.log(d.properties.NAME)}); // d is a feature
-*/
-
-        // Selections
-
-/*        countries.on("click", function(d){
-
-            if ()
-
-
-        }*/
